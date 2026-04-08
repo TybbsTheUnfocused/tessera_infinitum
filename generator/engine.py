@@ -59,16 +59,54 @@ class Engine:
     def __init__(self, size=(2048, 2048)):
         self.size = size
 
+    def _get_whitespace_ratio(self, img):
+        """Calculate the ratio of pure white pixels in the image."""
+        arr = np.array(img)
+        # White is [255, 255, 255]
+        is_white = np.all(arr == [255, 255, 255], axis=-1)
+        return np.mean(is_white)
+        
+    def _get_largest_void(self, img):
+        """Find the bounding box (x1, y1, x2, y2) of the largest mostly-white area."""
+        import scipy.ndimage as ndimage
+        arr = np.array(img)
+        is_white = np.all(arr == [255, 255, 255], axis=-1)
+        
+        # Dilate white regions to connect areas separated by thin lines
+        is_white_connected = ndimage.binary_dilation(is_white, iterations=6)
+        
+        # Label contiguous white regions
+        labeled_mask, num_features = ndimage.label(is_white_connected)
+        if num_features == 0:
+            return (0, 0, self.size[0], self.size[1]) # Fallback
+            
+        # Find the size of each region
+        # np.bincount is fast for getting sizes of labeled regions
+        sizes = np.bincount(labeled_mask.ravel())
+        # Ignore label 0 (background/non-white)
+        sizes[0] = 0
+        
+        # Find label of largest region
+        largest_label = sizes.argmax()
+        
+        # Find bounding box of largest region
+        slices = ndimage.find_objects(labeled_mask)[largest_label - 1]
+        y_slice, x_slice = slices
+        
+        return (x_slice.start, y_slice.start, x_slice.stop, y_slice.stop)
+
     def _render_grid_mode(self, draw, noise_field, palette, params):
         """
-        Rectilinear Cellular Grid generation.
+        Rectilinear Cellular Grid generation with styles.
         """
         grid_res = params.get('grid_res', 64)
-        threshold = params.get('grid_threshold', 0.4)
+        # Decrease fill power significantly to allow more white space for iterative overlay
+        threshold = params.get('grid_threshold', 0.55 + np.random.rand() * 0.15)
         padding_factor = params.get('cell_padding', 0.1) # [0, 1]
         stroke_width = params.get('cell_stroke', 0)
+        grid_style = params.get('grid_style', 'rect') # rect, dots, maze
         
-        h, w = self.size
+        w, h = self.size
         cell_w = w / grid_res
         cell_h = h / grid_res
         
@@ -79,48 +117,52 @@ class Engine:
         
         for i in range(grid_res):
             for j in range(grid_res):
-                # Sample noise at center of cell
-                # noise_field.shape is (h, w)
                 sample_y = int((i + 0.5) * cell_h)
                 sample_x = int((j + 0.5) * cell_w)
                 
-                # Clip samples
                 sample_y = min(max(sample_y, 0), h - 1)
                 sample_x = min(max(sample_x, 0), w - 1)
                 
                 val = noise_field[sample_y, sample_x]
                 
                 if val > threshold:
-                    # Calculate cell bounds
                     x1 = j * cell_w
                     y1 = i * cell_h
                     x2 = (j + 1) * cell_w
                     y2 = (i + 1) * cell_h
                     
-                    # Apply padding
-                    pad_w = (cell_w * padding_factor) / 2
-                    pad_h = (cell_h * padding_factor) / 2
-                    
-                    rect = [x1 + pad_w, y1 + pad_h, x2 - pad_w, y2 - pad_h]
-                    
-                    # Determine color
                     if color_by_noise:
-                        # Map localized noise to palette
                         color = map_noise_to_color(np.array([val]), palette)[0]
                     else:
-                        # Global gradient based on position
                         norm_pos = (i / grid_res + j / grid_res) / 2
                         color = map_noise_to_color(np.array([norm_pos]), palette)[0]
                     
                     color = tuple(to_pebble_array(np.array([color]))[0])
                     
-                    # Draw
-                    if stroke_width > 0:
-                        draw.rectangle(rect, fill=color, outline=(0, 0, 0), width=stroke_width)
-                    else:
-                        draw.rectangle(rect, fill=color)
+                    if grid_style == 'rect':
+                        pad_w = (cell_w * padding_factor) / 2
+                        pad_h = (cell_h * padding_factor) / 2
+                        rect = [x1 + pad_w, y1 + pad_h, x2 - pad_w, y2 - pad_h]
+                        if stroke_width > 0:
+                            draw.rectangle(rect, fill=color, outline=(0, 0, 0), width=stroke_width)
+                        else:
+                            draw.rectangle(rect, fill=color)
+                    elif grid_style == 'dots':
+                        # Scale radius based on noise
+                        intensity = (val - threshold) / (1.0 - threshold)
+                        r = intensity * (min(cell_w, cell_h) / 2) * (1.0 - padding_factor)
+                        cx, cy = x1 + cell_w/2, y1 + cell_h/2
+                        rect = [cx - r, cy - r, cx + r, cy + r]
+                        draw.ellipse(rect, fill=color)
+                    elif grid_style == 'maze':
+                        pad_w = (cell_w * padding_factor) / 2
+                        pad_h = (cell_h * padding_factor) / 2
+                        if np.random.rand() > 0.5:
+                            draw.line([x1 + pad_w, y1 + pad_h, x2 - pad_w, y2 - pad_h], fill=color, width=max(4, stroke_width))
+                        else:
+                            draw.line([x1 + pad_w, y2 - pad_h, x2 - pad_w, y1 + pad_h], fill=color, width=max(4, stroke_width))
                         
-        return {"grid_res": grid_res, "threshold": threshold}
+        return {"grid_res": grid_res, "threshold": threshold, "style": grid_style}
 
     def _is_collision_free(self, mask, p1, p2, seed_id, buffer=0):
         """Check if the line segment from p1 to p2 hits another seed's path."""
@@ -176,7 +218,7 @@ class Engine:
         num_seeds = params.get('num_seeds', 15)
         
         # Mask for collision detection (int to distinguish seeds)
-        h, w = self.size
+        w, h = self.size
         collision_mask = np.zeros((h, w), dtype=int)
         
         terminal_shape = params.get('terminal_shape', 'square')
@@ -312,7 +354,9 @@ class Engine:
                 
                 # Fill probability is ONLY for leaf nodes (boxes with no children)
                 fill_prob = 0.0
-                if is_leaf:
+                # Do not fill large boxes (>= 1/8th of the canvas width, i.e. 256px on a 2048 canvas)
+                # 256x256 is 1/64th of the total grid area.
+                if params.get('fill_boxes', True) and is_leaf and box_size <= (self.size[0] / 8.0):
                     # Scales inversely with size (target ~30-40% for smallest boxes)
                     fill_prob = 0.4 * (1.0 - (box_size / size))
                 
@@ -410,6 +454,58 @@ class Engine:
         
         return {"bounding_box": draw.im.getbbox() if hasattr(draw, 'im') else None}
 
+    def _render_segmented_mode(self, img, noise_field, palette, params, base_seed):
+        """Optional segmented mode where canvas is split into sub-regions."""
+        w, h = self.size
+        # 2x2 grid
+        regions = [
+            (0, 0, w//2, h//2),
+            (w//2, 0, w, h//2),
+            (0, h//2, w//2, h),
+            (w//2, h//2, w, h)
+        ]
+        
+        for idx, (x1, y1, x2, y2) in enumerate(regions):
+            rw, rh = x2 - x1, y2 - y1
+            sub_engine = Engine(size=(rw, rh))
+            sub_img = Image.new('RGBA', (rw, rh), (0, 0, 0, 0))
+            sub_draw = ImageDraw.Draw(sub_img)
+            
+            sub_seed = base_seed + idx * 100
+            
+            sub_noise_field = generate_noise_field(
+                shape=(rh, rw), 
+                scale=params.get('noise_scale', 5.0), 
+                octaves=params.get('noise_octaves', 4),
+                seed=sub_seed
+            )
+            
+            sub_params = params.copy()
+            sub_params['size'] = min(rw, rh) * 0.9 # scale down fractals
+            
+            np.random.seed(sub_seed)
+            sub_mode = np.random.choice(['fractal_pure', 'lsystem_growth'])
+            if sub_mode == 'fractal_pure':
+                sub_engine._render_fractal_pure_mode(sub_draw, sub_noise_field, palette, sub_params)
+            else:
+                sub_engine._render_lsystem_growth_mode(sub_img, sub_draw, sub_noise_field, palette, sub_params, sub_seed)
+                
+            img.paste(sub_img, (x1, y1), sub_img)
+            
+        # Draw connector pass
+        conn_params = params.copy()
+        conn_params['num_seeds'] = 15
+        conn_params['line_width'] = 6
+        conn_params['node_size'] = 8
+        conn_params['step_size'] = 40.0
+        
+        conn_img = Image.new('RGBA', self.size, (0, 0, 0, 0))
+        conn_draw = ImageDraw.Draw(conn_img)
+        self._render_lsystem_growth_mode(conn_img, conn_draw, noise_field, palette, conn_params, base_seed + 999)
+        img.paste(conn_img, (0, 0), conn_img)
+        
+        return {"segmented": True}
+
     def generate_universe(self, seed, params=None):
         """
         Generate a complete universe from a seed and parameters.
@@ -472,13 +568,61 @@ class Engine:
             render_metadata['lsystem'] = self._render_lsystem_growth_mode(img, draw, noise_field, palette, params, seed)
         elif mode == 'fractal_pure':
             render_metadata['pure'] = self._render_fractal_pure_mode(draw, noise_field, palette, params)
+        elif mode == 'segmented':
+            render_metadata['segmented'] = self._render_segmented_mode(img, noise_field, palette, params, seed)
         else:
             render_metadata['path'] = self._render_path_mode(draw, noise_field, vector_field, palette, params)
+            
+        # Adaptive Density Loop
+        pass_idx = 0
+        MAX_PASSES = 15
+        while self._get_whitespace_ratio(img) > 0.50 and pass_idx < MAX_PASSES:
+            pass_idx += 1
+            x1, y1, x2, y2 = self._get_largest_void(img)
+            void_w, void_h = x2 - x1, y2 - y1
+            
+            if void_w < self.size[0] * 0.15 or void_h < self.size[1] * 0.15:
+                # If no single large void exists but we're still too sparse,
+                # drop a large overlay across the whole canvas.
+                x1, y1 = 0, 0
+                x2, y2 = self.size[0], self.size[1]
+                void_w, void_h = x2 - x1, y2 - y1
+                
+            sub_engine = Engine(size=(void_w, void_h))
+            sub_img = Image.new('RGBA', (void_w, void_h), (0, 0, 0, 0))
+            sub_draw = ImageDraw.Draw(sub_img)
+            
+            sub_seed = seed + pass_idx * 1000
+            np.random.seed(sub_seed)
+            sub_noise_field = generate_noise_field(
+                shape=(void_h, void_w), 
+                scale=noise_scale, 
+                octaves=noise_octaves,
+                seed=sub_seed
+            )
+            
+            sub_params = params.copy()
+            sub_params['size'] = min(void_w, void_h) * 0.95
+            sub_params['num_seeds'] = 60
+            sub_params['step_size'] = 25.0
+            sub_params['line_width'] = 6
+            sub_params['order'] = max(4, sub_params.get('order', 5) - 1)
+            sub_params['grid_res'] = max(16, int(16 * (min(void_w, void_h) / 1000.0)))
+            
+            sub_mode = np.random.choice(['fractal_pure', 'lsystem_growth'])
+            if sub_mode == 'fractal_pure':
+                sub_engine._render_fractal_pure_mode(sub_draw, sub_noise_field, palette, sub_params)
+            else:
+                sub_engine._render_lsystem_growth_mode(sub_img, sub_draw, sub_noise_field, palette, sub_params, sub_seed)
+                
+            img.paste(sub_img, (x1, y1), sub_img)
                 
         metadata = {
             "seed": seed,
             "params": params,
-            "bounding_box": img.getbbox()
+            "bounding_box": img.getbbox(),
+            "adaptive_passes": pass_idx,
+            "final_whitespace": self._get_whitespace_ratio(img)
         }
         if render_metadata:
             metadata.update(render_metadata)

@@ -14,6 +14,8 @@ LSYSTEM_RULES = {
 FRACTAL_TYPES = ['box', 'koch', 'hilbert_koch']
 TERMINAL_SHAPES = ['square', 'circle']
 
+GRID_STYLES = ['rect', 'dots', 'maze']
+
 OUTPUT_DIR = "generations/export_all"
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
@@ -26,12 +28,14 @@ def run_gen(filename, args):
 def main():
     seed = 200000
     
-    # 1. Grid Mode (just one representative image)
-    run_gen("grid_showcase.png", [
-        "--mode", "grid", "--style", "rainbow", "--seed", str(seed),
-        "--grid-res", "48", "--cell-padding", "0.2"
-    ])
-    seed += 1
+    # 1. Grid Mode (Showcase styles)
+    for g_style in GRID_STYLES:
+        style = STYLES[seed % len(STYLES)]
+        run_gen(f"grid_{g_style}_showcase.png", [
+            "--mode", "grid", "--style", style, "--seed", str(seed),
+            "--grid-res", "48", "--cell-padding", "0.2", "--grid-style", g_style
+        ])
+        seed += 1
         
     # 2. L-System Growth Modes (One normal, one hybrid for each rule)
     for rule, params in LSYSTEM_RULES.items():
@@ -74,6 +78,13 @@ def main():
         ])
         seed += 1
         
+        if frac == 'box':
+            run_gen(f"pure_{frac}_{style}_no_fill.png", [
+                "--mode", "fractal_pure", "--style", style, "--seed", str(seed),
+                "--fractal", frac, "--order", "7", "--size", "2048", "--no-box-fill"
+            ])
+            seed += 1
+        
         # Hybrid
         hybrid_style = STYLES[seed % len(STYLES)]
         run_gen(f"hybrid_{frac}_{hybrid_style}.png", [
@@ -82,6 +93,12 @@ def main():
             "--size", "2048", "--composite"
         ])
         seed += 1
+        
+    # 4. Segmented Mode
+    run_gen("segmented_showcase.png", [
+        "--mode", "segmented", "--style", "crimson", "--seed", str(seed)
+    ])
+    seed += 1
 
 if __name__ == '__main__':
     main()

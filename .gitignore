@@ -5,7 +5,5 @@ __pycache__/
 .pytest_cache/
 
 # Generations
-generations
-generations/
 todos
 

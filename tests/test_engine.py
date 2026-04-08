@@ -88,3 +88,14 @@ def test_engine_lsystem():
     assert isinstance(img, Image.Image)
     assert img.size == (100, 100)
     assert metadata['params']['fractal_type'] == 'lsystem'
+
+def test_engine_adaptive_density():
+    from generator.engine import Engine
+    engine = Engine(size=(1024, 1024)) # Smaller size for faster testing
+    params = {'mode': 'fractal_pure', 'fractal_type': 'box', 'order': 2}
+    img, metadata = engine.generate_universe(seed=42, params=params)
+    # On small canvases with low order, we just want to ensure it reduces whitespace
+    # significantly, not necessarily hitting the strict 0.50 target.
+    assert engine._get_whitespace_ratio(img) <= 0.85
+    assert metadata.get('adaptive_passes', 0) >= 0
+

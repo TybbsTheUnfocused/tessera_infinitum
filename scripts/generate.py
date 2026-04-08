@@ -17,7 +17,7 @@ def main():
     parser = argparse.ArgumentParser(description='Perlin-Infinite Universe Generator')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     parser.add_argument('--output', type=str, default='output.png', help='Output filename (PNG)')
-    parser.add_argument('--mode', type=str, default='path', choices=['path', 'grid', 'lsystem_growth', 'fractal_pure'], help='Generation mode')
+    parser.add_argument('--mode', type=str, default='path', choices=['path', 'grid', 'lsystem_growth', 'fractal_pure', 'segmented'], help='Generation mode')
     parser.add_argument('--style', type=str, default='deep_sea', 
                         choices=['deep_sea', 'solar', 'rainbow', 'forest', 'sunset', 'cobalt', 'crimson', 'pebble'], 
                         help='Style/Palette')
@@ -34,6 +34,7 @@ def main():
     parser.add_argument('--grid-threshold', type=float, default=0.4, help='Noise threshold for grid cells')
     parser.add_argument('--cell-padding', type=float, default=0.1, help='Padding between cells [0-1]')
     parser.add_argument('--cell-stroke', type=int, default=0, help='Cell stroke width')
+    parser.add_argument('--grid-style', type=str, default='rect', choices=['rect', 'dots', 'maze'], help='Style of grid cells')
     
     # Mode-specific: L-System Growth
     parser.add_argument('--lsystem-rule', type=str, default='dragon', choices=['dragon', 'gosper', 'sierpinski', 'plant'], help='L-System rule preset')
@@ -49,6 +50,7 @@ def main():
     parser.add_argument('--fractal', type=str, default='box', choices=['box', 'koch', 'hilbert', 'hilbert_koch', 'lsystem'], help='Fractal type')
     parser.add_argument('--size', type=float, default=2048.0, help='Fractal bounds size')
     parser.add_argument('--order', type=int, default=7, help='Fractal recursion order')
+    parser.add_argument('--no-box-fill', action='store_true', help='Disable box fractal fills entirely')
     
     parser.add_argument('--count', type=int, default=1, help='Number of unique images to generate')
     
@@ -68,6 +70,7 @@ def main():
         'grid_threshold': args.grid_threshold,
         'cell_padding': args.cell_padding,
         'cell_stroke': args.cell_stroke,
+        'grid_style': args.grid_style,
         
         'lsystem_rule': args.lsystem_rule,
         'iterations': args.iterations,
@@ -80,7 +83,8 @@ def main():
         
         'fractal_type': args.fractal,
         'size': args.size,
-        'order': args.order
+        'order': args.order,
+        'fill_boxes': not args.no_box_fill
     }
     
     # L-system defaults
