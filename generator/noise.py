@@ -28,11 +28,17 @@ def generate_noise_field(shape=(100, 100), scale=10.0, octaves=4):
     res_y, res_x = shape
     
     # Generate coordinates for x and y
-    x = np.linspace(0, scale, res_x)
-    y = np.linspace(0, scale, res_y)
+    # x corresponds to columns (width), y to rows (height)
+    # vnoise.noise2(x, y) returns shape (len(x), len(y))
+    # So we should pass (np.linspace for res_y, np.linspace for res_x) 
+    # OR transpose the result.
     
-    # Generate 2D noise field
-    field = noise.noise2(x, y, octaves=octaves)
+    y_coords = np.linspace(0, scale, res_y)
+    x_coords = np.linspace(0, scale, res_x)
+    
+    # Generate 2D noise field. With grid_mode=True (default), 
+    # it returns shape (len(y_coords), len(x_coords)) which matches (res_y, res_x)
+    field = noise.noise2(y_coords, x_coords, octaves=octaves)
     
     # Normalize to [0, 1]
     f_min, f_max = field.min(), field.max()

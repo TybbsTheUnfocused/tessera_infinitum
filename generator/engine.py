@@ -124,8 +124,9 @@ class Engine:
         colors = to_pebble_array(colors)
         
         # 5. Rasterization
-        # Background: Cream/White
-        img = Image.new('RGB', self.size, color=(255, 253, 240))
+        # Background: Cream/White (Pebble-safe #FFFF55 / 255, 255, 85 or White #FFFFFF)
+        # Using a soft cream #FFFFAA (255, 255, 170)
+        img = Image.new('RGB', self.size, color=(255, 255, 170))
         draw = ImageDraw.Draw(img)
         
         if len(distorted_path) > 1:
