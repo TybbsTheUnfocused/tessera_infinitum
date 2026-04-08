@@ -1,0 +1,10 @@
+[project]
+name = "perlin-infinite-generator"
+version = "0.1.0"
+dependencies = [
+    "numpy",
+    "pillow",
+    "vnoise",
+    "scipy",
+    "pytest"
+]
