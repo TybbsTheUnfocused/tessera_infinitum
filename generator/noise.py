@@ -12,7 +12,7 @@ except ImportError:
 
 import vnoise
 
-def generate_noise_field(shape=(100, 100), scale=10.0, octaves=4):
+def generate_noise_field(shape=(100, 100), scale=10.0, octaves=4, seed=None):
     """
     Generate a 2D noise field using vnoise.
     
@@ -20,11 +20,12 @@ def generate_noise_field(shape=(100, 100), scale=10.0, octaves=4):
         shape (tuple): Shape of the field (rows, cols).
         scale (float): Scale of the noise.
         octaves (int): Number of octaves for fractal noise.
+        seed (int): Seed for the noise generator.
         
     Returns:
         np.ndarray: 2D noise field with values in [0, 1].
     """
-    noise = vnoise.Noise()
+    noise = vnoise.Noise(seed=seed)
     res_y, res_x = shape
     
     # Generate coordinates for x and y

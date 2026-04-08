@@ -53,17 +53,70 @@ SOLAR = np.array([
     (0xFF, 0xFF, 0x00), # Yellow
 ])
 
-def _interpolate_palette(values, palette):
+# RAINBOW: Full spectrum
+RAINBOW = np.array([
+    (0xFF, 0x00, 0x00), # Red
+    (0xFF, 0x55, 0x00), # Orange
+    (0xFF, 0xFF, 0x00), # Yellow
+    (0x00, 0xFF, 0x00), # Green
+    (0x00, 0xFF, 0xFF), # Cyan
+    (0x00, 0x00, 0xFF), # Blue
+    (0xAA, 0x00, 0xFF), # Purple
+])
+
+# FOREST: Greens and Browns
+FOREST = np.array([
+    (0x00, 0x55, 0x00), # DarkGreen
+    (0x55, 0x55, 0x00), # ArmyGreen
+    (0x55, 0xAA, 0x00), # KellyGreen
+    (0xAA, 0xFF, 0x00), # Inchworm
+    (0x00, 0xFF, 0x55), # SpringBud
+    (0x55, 0xAA, 0x55), # DarkGray
+])
+
+# SUNSET: Pinks, Purples, Oranges
+SUNSET = np.array([
+    (0x55, 0x00, 0x55), # ImperialPurple
+    (0xAA, 0x00, 0x55), # JazzberryJam
+    (0xFF, 0x00, 0xAA), # FashionMagenta
+    (0xFF, 0x55, 0x55), # SunsetOrange
+    (0xFf, 0xAA, 0x55), # Rajah
+])
+
+# COBALT: Deep blues and teals
+COBALT = np.array([
+    (0x00, 0x00, 0x55), # OxfordBlue
+    (0x00, 0x55, 0xAA), # CobaltBlue
+    (0x00, 0xAA, 0xFF), # VividCerulean
+    (0x55, 0xFF, 0xFF), # ElectricBlue
+    (0x00, 0xAA, 0xAA), # TiffanyBlue
+])
+
+# CRIMSON: Deep reds and magentas
+CRIMSON = np.array([
+    (0x55, 0x00, 0x00), # BulgarianRose
+    (0xAA, 0x00, 0x00), # DarkRed
+    (0xFF, 0x00, 0x55), # Folley
+    (0xAA, 0x00, 0xAA), # Purple
+    (0xFF, 0x55, 0xAA), # BrilliantRose
+])
+
+def _interpolate_palette(values, palette, periodic=False):
     """
     Helper to interpolate values [0, 1] across a palette of colors.
     
     Args:
         values (np.ndarray): Normalized values [0, 1].
         palette (np.ndarray): Array of RGB colors.
+        periodic (bool): If True, wraps back to start for a seamless loop.
         
     Returns:
         np.ndarray: Interpolated RGB colors.
     """
+    if periodic:
+        # Append first color to end for seamless wrap
+        palette = np.vstack([palette, palette[0]])
+        
     num_colors = len(palette)
     if num_colors < 2:
         return np.repeat(palette, len(values), axis=0)
@@ -101,19 +154,22 @@ def map_noise_to_color(noise_values, palette):
     """
     return _interpolate_palette(noise_values, palette)
 
-def map_path_to_color(path_length, palette):
+def map_path_to_color(path_length, palette, frequency=1.0):
     """
-    Map progress [0, 1] along a path to colors.
+    Map progress along a path to colors with frequency modulation.
     
     Args:
         path_length (int): Number of points in the path.
         palette (np.ndarray): RGB colors.
+        frequency (float): How many times to cycle through the palette.
         
     Returns:
         np.ndarray: Array of RGB colors for each point.
     """
-    progress = np.linspace(0, 1, path_length)
-    return _interpolate_palette(progress, palette)
+    progress = np.linspace(0, frequency, path_length)
+    # Wrap progress for periodic mapping
+    wrapped_progress = progress % 1.0
+    return _interpolate_palette(wrapped_progress, palette, periodic=True)
 
 def map_angle_to_color(angles, palette):
     """
@@ -129,3 +185,35 @@ def map_angle_to_color(angles, palette):
     # Normalize angles to [0, 1]
     norm_angles = (angles % (2 * np.pi)) / (2 * np.pi)
     return _interpolate_palette(norm_angles, palette)
+
+def lighten_color(rgb, factor=0.5):
+    """
+    Lighten an RGB color by interpolating toward white.
+    
+    Args:
+        rgb (tuple/np.ndarray): RGB values.
+        factor (float): 0.0 is original color, 1.0 is white.
+        
+    Returns:
+        tuple: Lightened RGB values.
+    """
+    rgb_arr = np.array(rgb)
+    white = np.array([255, 255, 255])
+    lightened = rgb_arr + (white - rgb_arr) * factor
+    return tuple(lightened.astype(np.uint8))
+
+def darken_color(rgb, factor=0.5):
+    """
+    Darken an RGB color by interpolating toward black.
+    
+    Args:
+        rgb (tuple/np.ndarray): RGB values.
+        factor (float): 0.0 is original color, 1.0 is black.
+        
+    Returns:
+        tuple: Darkened RGB values.
+    """
+    rgb_arr = np.array(rgb)
+    black = np.array([0, 0, 0])
+    darkened = rgb_arr + (black - rgb_arr) * factor
+    return tuple(darkened.astype(np.uint8))

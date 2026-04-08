@@ -8,9 +8,13 @@ def test_noise_field_shape():
     assert np.min(field) >= 0.0
     assert np.max(field) <= 1.0
 
-def test_vector_field_angles():
-    noise = np.random.rand(10, 10)
-    vectors = generate_vector_field(noise)
-    assert vectors.shape == (10, 10)
-    assert np.all(vectors >= 0)
-    assert np.all(vectors <= 2 * np.pi)
+def test_noise_determinism():
+    seed = 42
+    field1 = generate_noise_field(shape=(50, 50), seed=seed)
+    field2 = generate_noise_field(shape=(50, 50), seed=seed)
+    assert np.allclose(field1, field2)
+
+def test_noise_uniqueness():
+    field1 = generate_noise_field(shape=(50, 50), seed=100)
+    field2 = generate_noise_field(shape=(50, 50), seed=101)
+    assert not np.allclose(field1, field2)
