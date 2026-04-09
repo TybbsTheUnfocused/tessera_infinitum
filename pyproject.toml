@@ -1,5 +1,5 @@
 [project]
-name = "perlin-infinite-generator"
+name = "tessera-ad-infinitum-generator"
 version = "0.1.0"
 dependencies = [
     "numpy",

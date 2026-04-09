@@ -1,4 +1,4 @@
-# Perlin-Infinite Generator
+# Tessera ad Infinitum Generator
 
 Generative art engine for Pebble watchfaces using Perlin noise and fractal paths.
 

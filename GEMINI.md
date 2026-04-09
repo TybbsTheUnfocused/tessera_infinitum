@@ -1,4 +1,4 @@
-# Perlin-Infinite: Project Context
+# Tessera ad Infinitum: Project Context
 
 ## Project Overview
 A generative art watchface for Pebble, utilizing multi-octave Perlin noise and an edge-compute hybrid architecture.
