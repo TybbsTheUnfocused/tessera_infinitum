@@ -4,6 +4,8 @@ Recipe deck for the Tessera ad Infinitum orchestrator.
 Each recipe is a frozen param dict for Engine.generate_universe().
 Palette and terminal_shape are NOT included — they are randomized per run.
 """
+import copy
+
 import numpy as np
 
 STYLES = [
@@ -59,23 +61,28 @@ RECIPES = [
 
 
 def get_recipe_by_name(name):
-    """Look up a recipe by its name. Returns None if not found."""
+    """Look up a recipe by its name. Returns None if not found.
+
+    Returns a deep copy so callers can safely mutate the result.
+    """
     for recipe in RECIPES:
         if recipe['name'] == name:
-            return recipe
+            return copy.deepcopy(recipe)
     return None
 
 
 def select_recipe(rng):
     """Select a recipe using weighted random choice.
 
+    Returns a deep copy so callers can safely mutate the result.
+
     Args:
         rng: numpy RandomState instance for deterministic selection.
 
     Returns:
-        dict: The selected recipe.
+        dict: The selected recipe (deep copy).
     """
     weights = np.array([r['weight'] for r in RECIPES])
     probs = weights / weights.sum()
     idx = rng.choice(len(RECIPES), p=probs)
-    return RECIPES[idx]
+    return copy.deepcopy(RECIPES[idx])
