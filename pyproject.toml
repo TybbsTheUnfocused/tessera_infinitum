@@ -7,5 +7,6 @@ dependencies = [
     "vnoise",
     "scipy",
     "pytest",
-    "setuptools"
+    "setuptools",
+    "boto3",
 ]

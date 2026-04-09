@@ -1,0 +1,63 @@
+# .github/workflows/generate.yml
+name: Generate Universe
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: 'Override seed (skip UTC-hour derivation)'
+        required: false
+        type: string
+      recipe:
+        description: 'Force a specific recipe by name'
+        required: false
+        type: string
+
+env:
+  PYTHONPATH: '.'
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Orchestrate
+        run: |
+          ARGS="--output-dir output"
+          if [ -n "${{ inputs.seed }}" ]; then
+            ARGS="$ARGS --seed ${{ inputs.seed }}"
+          fi
+          if [ -n "${{ inputs.recipe }}" ]; then
+            ARGS="$ARGS --recipe ${{ inputs.recipe }}"
+          fi
+          uv run python scripts/orchestrate.py $ARGS
+
+      - name: Slice
+        run: uv run python scripts/slice.py --output-dir output --count 100
+
+      - name: Upload to R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: uv run python scripts/upload.py --output-dir output
