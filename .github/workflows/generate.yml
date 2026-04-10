@@ -3,7 +3,7 @@ name: Generate Universe
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '52 * * * *'
   workflow_dispatch:
     inputs:
       seed:
