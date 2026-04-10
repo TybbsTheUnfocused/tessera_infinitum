@@ -9,4 +9,5 @@ dependencies = [
     "pytest",
     "setuptools",
     "boto3",
+    "modal",
 ]

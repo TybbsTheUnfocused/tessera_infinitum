@@ -2,8 +2,9 @@
 name: Generate Universe
 
 on:
-  schedule:
-    - cron: '11 * * * *'
+  # Cron disabled — pipeline now runs on Modal (modal_app.py)
+  # schedule:
+  #   - cron: '11 * * * *'
   workflow_dispatch:
     inputs:
       seed:
