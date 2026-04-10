@@ -356,7 +356,7 @@ class Engine:
                 fill_prob = 0.0
                 # Do not fill large boxes (>= 1/8th of the canvas width, i.e. 256px on a 2048 canvas)
                 # 256x256 is 1/64th of the total grid area.
-                if params.get('fill_boxes', True) and is_leaf and box_size <= (self.size[0] / 8.0):
+                if params.get('fill_boxes', True) and is_leaf and box_size <= (self.size[0] / 10.0):
                     # Scales inversely with size (target ~30-40% for smallest boxes)
                     fill_prob = 0.4 * (1.0 - (box_size / size))
                 
